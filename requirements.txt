@@ -1,0 +1,14 @@
+groq
+pinecone
+langchain
+langchain-text-splitters
+langchain-pinecone
+langchain-groq
+langchain-huggingface
+transformers
+huggingface_hub
+numpy
+load_dotenv
+requests
+PyPDF2
+streamlit
