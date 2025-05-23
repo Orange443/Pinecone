@@ -19,7 +19,8 @@ pc = Pinecone(api_key=api_key)
 embeddings = PineconeEmbeddings(
     model="llama-text-embed-v2",
     pinecone_api_key=api_key,
-    document_params={"input_type": "passage"}   
+    document_params={"input_type": "passage"},
+    query_params={"input_type": "query"}  
 )
 
 def create_index():
@@ -27,7 +28,7 @@ def create_index():
     
     #existing_indexes = [idx.strip().lower() for idx in pc.list_indexes().names()]
     existing_indexes = pc.list_indexes().names()
-    st.write("Available indexes:", existing_indexes)
+    #st.write("Available indexes:", existing_indexes)
     
     if index_name not in existing_indexes:
         try:
@@ -150,4 +151,25 @@ def query_and_display_chunks():
 
 
 
+def check_pinecone_index_exists(index_name: str) -> bool:
+    """
+    Checks if a Pinecone index exists.
 
+    Args:
+        index_name: The name of the Pinecone index to check.
+
+    Returns:
+        True if the index exists, False otherwise.
+    """
+    try:
+        api_key = os.environ.get("PINECONE_API_KEY")
+        if not api_key:
+            st.error("PINECONE_API_KEY not found. Please set it.")
+            return False
+
+        pc = Pinecone(api_key=api_key)
+        return index_name in pc.list_indexes().names()
+
+    except Exception as e:
+        st.error(f"Error checking Pinecone index: {e}")
+        return False
