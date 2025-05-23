@@ -38,14 +38,7 @@ def main():
                 #st.success(f"Uploaded {num_chunks} chunks to Pinecone!")
                 create_index()
                 num_chunks = embed_and_store(enriched_chunks)
-                st.success(f"Uploaded {num_chunks} enriched chunks to Pinecone!")
-
-
-
-                #vectorstore = get_pinecone_vectorstore()
-                # """ st.session_state.conversation = get_converstation_chain(vectorstore)
-                # st.success("PDFs processed and conversation chain ready!")
-                # st.write(chunks) """"   
+                st.success(f"Uploaded {num_chunks} enriched chunks to Pinecone!")  
 
     if "messages" not in st.session_state:
         st.session_state["messages"] = [{"role": "assistant", "content": "How can I help you?"}]
