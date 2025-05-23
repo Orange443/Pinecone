@@ -43,73 +43,111 @@ def create_index():
     else:
         st.warning(f"Index '{index_name}' already exists.")
 
-def update_db():
-    response = client.models.generate_content(
-    model="gemini-2.0-flash", contents="Explain how AI works in a few words"
-    )
-    testing = response.text
-    return testing
-
-
-def vectorstore_embed():
-    pass
-    # embeddings = pc.inference.embed(
-    # model="multilingual-e5-large",
-    # inputs=[c['text'] for c in chunks],
-    # parameters={"input_type": "passage", "truncate": "END"}
-    # )
-    # print(embeddings[0])
-
-def embed_and_store(chunks):
-    index_name = "llama-text-embed-v2"
-    index = pc.Index(index_name)
+def delete_index():
     try:
-        vectors = embeddings.embed_documents(chunks)
-
-        to_upsert = [
-            {
-                "id": f"chunk-{i}",
-                "values": vectors[i],
-                "metadata": {"text": chunks[i]}
-            }
-            for i in range(len(chunks))
-        ]
-        batch_size = 100  
-        for i in range(0, len(to_upsert), batch_size):
-            batch = to_upsert[i:i + batch_size]
-            index.upsert(vectors=batch)
-        
-        return len(to_upsert)
+        pc.delete_index("llama-text-embed-v2")
+        st.success("Pinecone index 'llama-text-embed-v2' deleted successfully.")
     except Exception as e:
-        print(f"An error occurred during embedding or upserting: {e}")
-        return 0 
+        st.error(f"Failed to delete index: {e}")
 
-def get_pinecone_vectorstore():
+
+def embed_and_store(enriched_chunks: list[dict]) -> int:
+    """
+    Embeds only `chunk` text but upserts Description & Keywords as metadata.
+    Returns number of vectors written.
+    """
     index_name = "llama-text-embed-v2"
     index = pc.Index(index_name)
-    
-    query_embeddings = PineconeEmbeddings(
-        model="llama-text-embed-v2", 
-        pinecone_api_key=os.environ["PINECONE_API_KEY"],
-        query_params={"input_type": "query"} 
-    )
-    vectorstore = PineconeVectorStore.from_existing_index(
-        index_name=index_name,  
-        embedding=query_embeddings
-    )
-    return vectorstore
 
-def get_converstation_chain(vectorstore):
-    
-    llm = ChatGroq(
-    model_name="deepseek-r1-distill-llama-70b",
+    try:
+        # 1. vectors for text only
+        to_embed = [c["chunk"] for c in enriched_chunks]
+        vectors   = embeddings.embed_documents(to_embed)
+
+        # 2. package for Pinecone
+        upserts = []
+        for i, entry in enumerate(enriched_chunks):
+            upserts.append(
+                {
+                    "id": f"chunk-{i}",
+                    "values": vectors[i],
+                    "metadata": {
+                        "text": entry["chunk"],
+                        "description": entry["description"],
+                        "keywords": entry["keywords"]
+                    },
+                }
+            )
+
+        # 3. batch upsert
+        batch_size = 100
+        for start in range(0, len(upserts), batch_size):
+            index.upsert(vectors=upserts[start : start + batch_size])
+
+        return len(upserts)
+
+    except Exception as e:
+        st.error(f"Embedding / upsert error: {e}")
+        return 0
+
+import streamlit as st
+
+def query_pinecone(query_text, top_k=3):
+    # Embed the query using the embed_query method
+    query_embedding = embeddings.embed_query(query_text)
+
+    # Access the Pinecone index
+    index = pc.Index("llama-text-embed-v2")  # Ensure this matches your actual index name
+
+    # Perform the query
+    response = index.query(
+        vector=query_embedding,
+        top_k=top_k,
+        include_metadata=True
     )
-    memory = ConversationBufferMemory(memory_key="chat_history", return_messages=True)
-    conversation_chain = ConversationalRetrievalChain.from_llm(
-        llm=llm,
-        retriever=vectorstore.as_retriever(),
-        memory=memory
-    )
-    return conversation_chain
+    return response
+
+def query_and_display_chunks():
+    st.subheader("Query Pinecone")
+
+    user_query = st.text_input("Ask a question or enter a keyword:")
+
+    if user_query and st.button("Search"):
+        with st.spinner("Searching Pinecone..."):
+            try:
+                # Embed the query
+                query_embedding = embeddings.embed_query(user_query)
+
+                # Access the Pinecone index
+                index = pc.Index("llama-text-embed-v2")  # Ensure this matches your actual index name
+
+                # Query the index
+                response = index.query(
+                    vector=query_embedding,
+                    top_k=3,
+                    include_metadata=True
+                )
+
+                # Display results
+                if response["matches"]:
+                    st.success(f"Found {len(response['matches'])} relevant chunks:")
+                    for match in response["matches"]:
+                        metadata = match.get("metadata", {})
+                        st.markdown("**Chunk:**")
+                        st.write(metadata.get("text", "No text found"))
+
+                        # Optional metadata display
+                        if "description" in metadata:
+                            st.markdown(f"**Description:** {metadata['description']}")
+                        if "keywords" in metadata:
+                            st.markdown(f"**Keywords:** {metadata['keywords']}")
+                        st.markdown("---")
+                else:
+                    st.warning("No matches found.")
+
+            except Exception as e:
+                st.error(f"An error occurred: {e}")
+
+
 
 
