@@ -3,7 +3,7 @@ import streamlit as st
 import os
 from dotenv import load_dotenv
 from pdf_text import get_pdf_text, divide_into_chunks
-from vectordb import embed_and_store,get_pinecone_vectorstore,get_converstation_chain
+from vectordb import embed_and_store,get_pinecone_vectorstore,get_converstation_chain,create_index, update_db
 from QandA import handle_userinput
 
 def main():
@@ -13,14 +13,8 @@ def main():
         page_icon="💬"
     )
 
-    if "conversation" not in st.session_state:
-        st.session_state.conversation = None
-    if "messages" not in st.session_state:
-        st.session_state.messages = []
-
     load_dotenv()
-
-    st.title("HI")
+    st.title("Chat with PDFs")
 
     with st.sidebar:
         st.subheader("Your PDFs")
@@ -36,6 +30,9 @@ def main():
                 st.write(chunks)
                 #num_chunks = embed_and_store(chunks)
                 #st.success(f"Uploaded {num_chunks} chunks to Pinecone!")
+                create_index()
+                st.write(update_db())
+
 
                 #vectorstore = get_pinecone_vectorstore()
                 # """ st.session_state.conversation = get_converstation_chain(vectorstore)
