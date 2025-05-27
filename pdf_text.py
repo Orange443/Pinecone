@@ -100,3 +100,12 @@ def divide_into_chunks(raw_text):
     )
     chunks = text_splitter.split_text(raw_text)
     return chunks
+
+def estimate_processing_time(num_chunks):
+    if num_chunks <= 0:
+        return "No chunks to process."
+    enrichment_time_seconds = num_chunks * 4.5
+    enrichment_time_minutes = enrichment_time_seconds / 60
+    estimate_str = f"\nTotal Estimated Minimum Time: Approximately {enrichment_time_minutes:.1f} minutes (excluding variable embedding/upsert time and potential retries)."
+
+    return estimate_str

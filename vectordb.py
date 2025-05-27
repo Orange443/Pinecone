@@ -120,7 +120,7 @@ def query_and_display_chunks():
                 query_embedding = embeddings.embed_query(user_query)
 
                 # Access the Pinecone index
-                index = pc.Index("llama-text-embed-v2")  # Ensure this matches your actual index name
+                index = pc.Index("llama-text-embed-v2") #---> Index name
 
                 # Query the index
                 response = index.query(
@@ -173,3 +173,4 @@ def check_pinecone_index_exists(index_name: str) -> bool:
     except Exception as e:
         st.error(f"Error checking Pinecone index: {e}")
         return False
+

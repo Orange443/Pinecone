@@ -2,17 +2,20 @@ from importlib.metadata import files
 import streamlit as st
 import os
 from dotenv import load_dotenv
-from pdf_text import get_pdf_text, divide_into_chunks, enrich_chunks
+import asyncio
+from pdf_text import get_pdf_text, divide_into_chunks, enrich_chunks, estimate_processing_time
 from vectordb import embed_and_store,create_index, delete_index,query_pinecone,query_and_display_chunks,check_pinecone_index_exists
+from pipeline import run_step1_chunking, run_step2_enrichment_optimized_async, run_step3_upsert
 from QandA import handle_userinput, get_groq_response
 
-def main():
-    st.set_page_config(
+
+st.set_page_config(
         page_title = "Chat with PDF",
         layout = "centered",
         page_icon="💬"
     )
 
+def main():
     load_dotenv()
     st.title("Chat with PDFs")
 
@@ -20,29 +23,44 @@ def main():
         st.subheader("Your PDFs")
         pdf_docs = st.file_uploader("Upload your PDFs here", accept_multiple_files=True)
 
-
         if st.button("Delete Pinecone Index",type="secondary"):
             delete_index()
             st.session_state.messages = [{"role": "assistant", "content": "Index deleted. How can I help you?"}]
-
             # Rerun the app to reflect the changes immediately
             st.rerun()
 
-        if st.button("Process PDFs",type="primary"):
-            with st.spinner(""):
-                #Step 1: Get raw text
-                raw_text =  get_pdf_text(pdf_docs)
-
-                #Step 2: divide text into chunks  
-                chunks = divide_into_chunks(raw_text)
-                #step 3: calls an API to make a structured format
-                enriched_chunks = enrich_chunks(chunks)  
-                #st.write(enriched_chunks)
-                #num_chunks = embed_and_store(chunks)
-                #st.success(f"Uploaded {num_chunks} chunks to Pinecone!")
+        # --- Button to run the new pipeline ---
+        if st.button("Process PDFs (Optimized)", type="primary"):
+            if not pdf_docs:
+                st.warning("Please upload at least one PDF file.")
+            else:
+                st.info("Starting Optimized PDF Processing Pipeline...")
                 create_index()
-                num_chunks = embed_and_store(enriched_chunks)
-                st.success(f"Uploaded {num_chunks} enriched chunks to Pinecone!")  
+
+                step1_ok = run_step1_chunking(pdf_docs)
+
+                step2_ok = False
+                if step1_ok:
+                    # --- Call the async function ---
+                    try:
+                        step2_ok = asyncio.run(run_step2_enrichment_optimized_async())
+                    except Exception as e:
+                        st.error(f"Error running async enrichment: {e}")
+                        step2_ok = False
+                    # --- End async call ---
+
+                step3_ok = False
+                if step2_ok:
+                    step3_ok = run_step3_upsert()
+
+                if step1_ok and step2_ok and step3_ok:
+                    st.balloons()
+                    st.success("🎉 Pipeline Complete!")
+                else:
+                    st.error("Pipeline failed. Check messages.")
+        
+        st.markdown("---")
+
 
     if "messages" not in st.session_state:
         st.session_state["messages"] = [{"role": "assistant", "content": "How can I help you?"}]
