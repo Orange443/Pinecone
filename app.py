@@ -1,12 +1,10 @@
 from importlib.metadata import files
 import streamlit as st
-import os
 from dotenv import load_dotenv
 import asyncio
-from pdf_text import get_pdf_text, divide_into_chunks, enrich_chunks, estimate_processing_time
-from vectordb import embed_and_store,create_index, delete_index,query_pinecone,query_and_display_chunks,check_pinecone_index_exists
+from vectordb import create_index, delete_index,query_pinecone,check_pinecone_index_exists
 from pipeline import run_step1_chunking, run_step2_enrichment_optimized_async, run_step3_upsert
-from QandA import handle_userinput, get_groq_response
+from QandA import get_groq_response
 
 
 st.set_page_config(
@@ -60,8 +58,6 @@ def main():
                     st.error("Pipeline failed. Check messages.")
         
         st.markdown("---")
-
-
     if "messages" not in st.session_state:
         st.session_state["messages"] = [{"role": "assistant", "content": "How can I help you?"}]
     

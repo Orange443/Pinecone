@@ -52,40 +52,6 @@ def delete_index():
         st.error(f"Failed to delete index: {e}")
 
 
-def embed_and_store(enriched_chunks: list[dict]) -> int:
-    """
-    Embeds only `chunk` text but upserts Description & Keywords as metadata.
-    Returns number of vectors written.
-    """
-    index_name = "llama-text-embed-v2"
-    index = pc.Index(index_name)
-
-    try:
-        # 1. vectors for text only
-        to_embed = [c["chunk"] for c in enriched_chunks]
-        vectors   = embeddings.embed_documents(to_embed)
-
-        # 2. package for Pinecone
-        upserts = []
-        for i, entry in enumerate(enriched_chunks):
-            upserts.append(
-                {
-                    "id": f"chunk-{i}",
-                    "values": vectors[i],
-                    "metadata": {
-                        "text": entry["chunk"],
-                        "description": entry["description"],
-                        "keywords": entry["keywords"]
-                    },
-                }
-            )
-
-        # 3. batch upsert
-        batch_size = 100
-        for start in range(0, len(upserts), batch_size):
-            index.upsert(vectors=upserts[start : start + batch_size])
-
-        return len(upserts)
 
     except Exception as e:
         st.error(f"Embedding / upsert error: {e}")
@@ -107,49 +73,6 @@ def query_pinecone(query_text, top_k=3):
         include_metadata=True
     )
     return response
-
-def query_and_display_chunks():
-    st.subheader("Query Pinecone")
-
-    user_query = st.text_input("Ask a question or enter a keyword:")
-
-    if user_query and st.button("Search"):
-        with st.spinner("Searching Pinecone..."):
-            try:
-                # Embed the query
-                query_embedding = embeddings.embed_query(user_query)
-
-                # Access the Pinecone index
-                index = pc.Index("llama-text-embed-v2") #---> Index name
-
-                # Query the index
-                response = index.query(
-                    vector=query_embedding,
-                    top_k=3,
-                    include_metadata=True
-                )
-
-                # Display results
-                if response["matches"]:
-                    st.success(f"Found {len(response['matches'])} relevant chunks:")
-                    for match in response["matches"]:
-                        metadata = match.get("metadata", {})
-                        st.markdown("**Chunk:**")
-                        st.write(metadata.get("text", "No text found"))
-
-                        # Optional metadata display
-                        if "description" in metadata:
-                            st.markdown(f"**Description:** {metadata['description']}")
-                        if "keywords" in metadata:
-                            st.markdown(f"**Keywords:** {metadata['keywords']}")
-                        st.markdown("---")
-                else:
-                    st.warning("No matches found.")
-
-            except Exception as e:
-                st.error(f"An error occurred: {e}")
-
-
 
 def check_pinecone_index_exists(index_name: str) -> bool:
     """

@@ -3,14 +3,12 @@ import os
 import pandas as pd
 import time
 import datetime
-import asyncio  # <-- Added
-import json     # <-- Added
+import asyncio 
+import json     
 from PyPDF2 import PdfReader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from google import genai
 from google.api_core import exceptions
-from pinecone import Pinecone
-from langchain_pinecone import PineconeEmbeddings
 from dotenv import load_dotenv
 from vectordb import pc, embeddings
 import streamlit as st
@@ -24,9 +22,10 @@ INDEX_NAME = "llama-text-embed-v2"
 GEMINI_MODEL = "gemini-1.5-flash-latest"
 EMBEDDING_MODEL = "llama-text-embed-v2"
 PINECONE_BATCH_SIZE = 100
+
 # --- Optimization Config ---
-BATCH_SIZE = 5       # How many chunks per API call
-CONCURRENT_LIMIT = 30 # Max parallel requests (Your Free Tier RPM)
+BATCH_SIZE = 5       
+CONCURRENT_LIMIT = 30 # Max parallel requests (Free Tier RPM)
 
 # ... (Keep your client initializations) ...
 google_api_key = os.environ['GOOGLE_API_KEY']
