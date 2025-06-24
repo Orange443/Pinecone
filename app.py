@@ -5,6 +5,7 @@ import asyncio
 from vectordb import create_index, delete_index,query_pinecone,check_pinecone_index_exists
 from pipeline import run_step1_chunking, run_step2_enrichment_optimized_async, run_step3_upsert
 from QandA import get_groq_response
+from google import genai
 
 
 st.set_page_config(
